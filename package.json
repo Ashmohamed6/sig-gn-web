@@ -1,0 +1,48 @@
+{
+  "name": "websig_guinee_web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/start-dev-programmatic.cjs",
+    "dev:next": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "smoke:data-ui": "node scripts/smoke-data-ui.mjs",
+    "smoke:admin-api": "node scripts/smoke-administration-api.mjs",
+    "smoke:admin-roles": "node scripts/smoke-administration-roles.mjs"
+  },
+  "dependencies": {
+    "@next/swc-linux-x64-gnu": "16.0.11",
+    "@next/swc-wasm-nodejs": "16.0.11",
+    "@tanstack/react-query": "^5.90.12",
+    "axios": "^1.13.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "lucide-react": "^0.554.0",
+    "next": "^16.0.11",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-leaflet": "^5.0.0",
+    "recharts": "^3.6.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/html2canvas": "^0.5.35",
+    "@types/jspdf": "^1.3.3",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/recharts": "^1.8.29",
+    "baseline-browser-mapping": "^2.9.15",
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.11",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+
+
+
+/* Variables CSS pour le thème */
+:root {
+
+   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+   
+  /* Couleurs principales */
+  --primary-green: #16a34a;
+  --primary-green-dark: #15803d;
+  --primary-green-light: #22c55e;
+  
+  /* Couleurs secondaires */
+  --secondary-teal: #0d9488;
+  
+  /* Couleurs de fond */
+  --bg-white: #ffffff;
+  --bg-gray-50: #f9fafb;
+  --bg-gray-100: #f3f4f6;
+  
+  /* Couleurs de texte */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-white: #ffffff;
+  
+  /* Bordures */
+  --border-gray: #e5e7eb;
+  
+  /* Ombres */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+/* Classes utilitaires personnalisées */
+.bg-primary {
+  background-color: var(--primary-green);
+}
+
+.bg-primary-dark {
+  background-color: var(--primary-green-dark);
+}
+
+.text-primary {
+  color: var(--primary-green);
+}
+
+.border-primary {
+  border-color: var(--primary-green);
+}
+
+.hover-primary:hover {
+  background-color: var(--primary-green-light);
+}
+
+/* Styles pour la sidebar */
+.sidebar-gradient {
+  background: linear-gradient(180deg, #15803d 0%, #16a34a 100%);
+}
+
+/* Styles pour les icônes de menu */
+.menu-icon {
+  transition: all 0.2s ease-in-out;
+}
+
+.menu-item-active .menu-icon {
+  transform: scale(1.1);
+}
+
+/* Animation pour le badge notification */
+@keyframes pulse-notification {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.notification-badge {
+  animation: pulse-notification 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar personnalisée */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Styles pour le header */
+.header-shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+/* Input de recherche personnalisé */
+.search-input:focus {
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+/* Menu dropdown */
+.dropdown-menu {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Badge utilisateur */
+.user-badge {
+  background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+}
+
+/* Hover effects */
+.menu-item-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.menu-item-hover:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(4px);
+}
+
+/* Cacher la scrollbar horizontale des onglets */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animation slide-in pour le panel */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
