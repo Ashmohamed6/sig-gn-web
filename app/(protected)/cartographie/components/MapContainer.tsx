@@ -47,6 +47,14 @@ interface MapContainerProps {
 
 const LOCALITES_LABEL_MIN_ZOOM = 12;
 const LOCALITES_LABEL_MAX_COUNT = 1000;
+const LEAFLET_PANE_Z_INDEX: Record<string, number> = {
+  tilePane: 200,
+  overlayPane: 400,
+  shadowPane: 500,
+  markerPane: 600,
+  tooltipPane: 650,
+  popupPane: 700,
+};
 
 // ============================================================
 // COMPONENT
@@ -84,7 +92,7 @@ export default function MapContainer({
     // Injecter les styles CSS
     injectStyles();
 
-    // Créer la carte
+    // CrÃ©er la carte
     const map = L.map(mapContainerRef.current, {
       center: [MAP_CONFIG.center.lat, MAP_CONFIG.center.lng],
       zoom: MAP_CONFIG.defaultZoom,
@@ -95,11 +103,12 @@ export default function MapContainer({
     });
 
     mapRef.current = map;
+    applyLeafletPaneOrder(map);
 
     // Groupe labels (au-dessus)
     labelsRef.current = L.layerGroup().addTo(map);
 
-    // Controls - avec vérification que les propriétés existent
+    // Controls - avec vÃ©rification que les propriÃ©tÃ©s existent
     const showZoomControl = (MAP_CONFIG as any).showZoomControl ?? true;
     const zoomControlPosition = (MAP_CONFIG as any).zoomControlPosition ?? "topright";
     
@@ -128,59 +137,69 @@ export default function MapContainer({
   useEffect(() => {
     if (!isMapReady || !mapRef.current) return;
     const map = mapRef.current;
+    let cancelled = false;
+
+    try {
+      map.stop();
+    } catch {
+      // map may already be stopped or removed
+    }
 
     // Fond neutre (quand aucun basemap)
-    const container = map.getContainer();
-    container.style.background = neutralBg === "white" ? "#ffffff" : "#e5e7eb";
+    try {
+      const container = map.getContainer();
+      if (container) {
+        container.style.background = neutralBg === "white" ? "#ffffff" : "#e5e7eb";
+      }
+    } catch {
+      // ignore if container not available
+    }
 
     // Remove existing basemap
     if (basemapLayerRef.current) {
-      basemapLayerRef.current.off();
-      basemapLayerRef.current.remove();
+      try {
+        basemapLayerRef.current.off();
+        map.removeLayer(basemapLayerRef.current);
+      } catch {
+        // ignore stale layer detach race
+      }
       basemapLayerRef.current = null;
     }
 
-    // Normalisation des IDs basemap
-    let basemapKey = activeBasemap;
-    if (basemapKey === "satellite") basemapKey = "sat";
-    if (basemapKey === "openstreetmap") basemapKey = "osm";
-    if (basemapKey === "osm_fr") basemapKey = "plan";
-
-    if (!basemapKey || basemapKey === "none") return;
-
-    // Support pour BASEMAPS en tant qu'objet OU tableau
-    let conf: any;
-    if (Array.isArray(BASEMAPS)) {
-      // Version tableau : chercher par id
-      conf = (BASEMAPS as any).find((bm: any) => 
-        bm.id === basemapKey || 
-        bm.id === activeBasemap ||
-        (basemapKey === "sat" && bm.id === "satellite") ||
-        (basemapKey === "plan" && bm.id === "osm_fr") ||
-        (basemapKey === "osm" && bm.id === "osm")
-      );
-    } else {
-      // Version objet : accès direct
-      conf = (BASEMAPS as any)[basemapKey];
-    }
-
-    if (!conf?.url) {
-      console.warn(`Basemap config not found for: ${basemapKey} (original: ${activeBasemap})`);
+    const { basemapKey, conf } = resolveBasemap(activeBasemap);
+    if (!basemapKey || basemapKey === "none" || !conf || !conf.url) {
       return;
     }
 
-    const tileOptions: L.TileLayerOptions = {
-      attribution: conf.attribution ?? "",
-      maxZoom: conf.maxZoom ?? MAP_CONFIG.maxZoom,
-      minZoom: conf.minZoom ?? MAP_CONFIG.minZoom,
-    };
-    if (conf.crossOrigin) {
-      tileOptions.crossOrigin = true;
-    }
-    const tile = L.tileLayer(conf.url, tileOptions);
+    if (cancelled) return;
 
-    basemapLayerRef.current = tile;
-    tile.addTo(map);
+    const basemapNativeMaxZoom = Number.isFinite(conf.maxZoom)
+      ? Number(conf.maxZoom)
+      : MAP_CONFIG.maxZoom;
+
+    let tile: L.TileLayer;
+    try {
+      const tileOptions: L.TileLayerOptions = {
+        attribution: conf.attribution ?? "",
+        maxZoom: MAP_CONFIG.maxZoom,
+        maxNativeZoom: basemapNativeMaxZoom,
+        minZoom: conf.minZoom ?? MAP_CONFIG.minZoom,
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 4,
+      };
+      if (conf.crossOrigin) {
+        tileOptions.crossOrigin = true;
+      }
+      tile = L.tileLayer(conf.url, tileOptions);
+      if (cancelled) return;
+      basemapLayerRef.current = tile;
+      tile.addTo(map);
+    } catch {
+      basemapLayerRef.current = null;
+      if (!cancelled) onBasemapFallback?.("osm");
+      return;
+    }
 
     // Satellite timeout -> fallback OSM
     if (basemapKey === "sat" || basemapKey === "satellite") {
@@ -192,7 +211,7 @@ export default function MapContainer({
       };
       const onErr = () => {
         errorCount += 1;
-        if (errorCount >= 8) {
+        if (errorCount >= 8 && !cancelled) {
           onBasemapFallback?.("osm");
         }
       };
@@ -201,15 +220,20 @@ export default function MapContainer({
       tile.on("tileerror", onErr);
 
       const t = window.setTimeout(() => {
-        if (!loadedOnce) onBasemapFallback?.("osm");
+        if (!loadedOnce && !cancelled) onBasemapFallback?.("osm");
       }, 8000);
 
       return () => {
+        cancelled = true;
         window.clearTimeout(t);
         tile.off("tileload", onLoad);
         tile.off("tileerror", onErr);
       };
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [isMapReady, activeBasemap, neutralBg, onBasemapFallback]);
 
   // ============================================================
@@ -660,19 +684,38 @@ function injectStyles() {
     `;
     document.head.appendChild(style);
   }
+}
 
-  // Fix z-index: keep map under floating UI controls.
-  if (!document.getElementById("sig-map-zindex-fix")) {
-    const style = document.createElement("style");
-    style.id = "sig-map-zindex-fix";
-    style.innerHTML = `
-      .leaflet-container {
-        z-index: 0 !important;
-      }
-      .leaflet-pane {
-        z-index: auto !important;
-      }
-    `;
-    document.head.appendChild(style);
+function resolveBasemap(activeBasemap: string): { basemapKey: string; conf: any | null } {
+  let basemapKey = String(activeBasemap || "").trim();
+  if (basemapKey === "satellite") basemapKey = "sat";
+  if (basemapKey === "openstreetmap") basemapKey = "osm";
+  if (basemapKey === "osm_fr") basemapKey = "plan";
+  if (!basemapKey || basemapKey === "none") return { basemapKey, conf: null };
+
+  // Map UI IDs to BASEMAPS array IDs
+  const idMapping: Record<string, string[]> = {
+    sat: ["sat", "satellite"],
+    plan: ["plan", "osm_fr"],
+    osm: ["osm"],
+    terrain: ["terrain"],
+    light: ["light"],
+    dark: ["dark"],
+  };
+
+  if (Array.isArray(BASEMAPS)) {
+    const candidateIds = idMapping[basemapKey] || [basemapKey];
+    const conf = BASEMAPS.find((bm) => bm && candidateIds.includes(bm.id));
+    return { basemapKey, conf: conf || null };
   }
+
+  return { basemapKey, conf: (BASEMAPS as any)[basemapKey] ?? null };
+}
+
+function applyLeafletPaneOrder(map: L.Map): void {
+  Object.entries(LEAFLET_PANE_Z_INDEX).forEach(([paneName, zIndex]) => {
+    const pane = map.getPane(paneName as keyof typeof LEAFLET_PANE_Z_INDEX);
+    if (!pane) return;
+    pane.style.zIndex = String(zIndex);
+  });
 }

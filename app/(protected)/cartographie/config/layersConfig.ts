@@ -784,7 +784,9 @@ export const COLLECTED_LAYERS: LayerConfig[] = [
  * Récupère toutes les couches
  */
 export function getAllLayers(): LayerConfig[] {
-  return [...REF_LAYERS, ...COLLECTED_LAYERS];
+  return [...REF_LAYERS, ...COLLECTED_LAYERS].filter(
+    (layer): layer is LayerConfig => Boolean(layer && (layer as LayerConfig).id)
+  );
 }
 
 /**
@@ -809,6 +811,7 @@ export function getLayersForProject(projectCode: string): LayerConfig[] {
   const isFiere = projectCode.toUpperCase().includes("FIERE");
 
   return getAllLayers().filter((layer) => {
+    if (!layer) return false;
     // Les couches ref sont toujours visibles
     if (!layer.project || layer.project === "ALL") return true;
     // Filtrer par projet
@@ -910,14 +913,14 @@ export const MAP_CONFIG = {
   // Zoom initial
   defaultZoom: 7,
   minZoom: 5,
-  maxZoom: 20,
+  maxZoom: 18,
   // Bounds de la Guinée (pour contraindre la vue)
   bounds: {
     southWest: { lat: 7.0, lng: -15.5 },
     northEast: { lat: 12.7, lng: -7.5 },
   },
   // Contrôles de zoom
-  showZoomControl: true,
+  showZoomControl: false,
   zoomControlPosition: "topright" as const,
 };
 

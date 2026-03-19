@@ -264,7 +264,7 @@ async function drawMapImage(
 
   // Create output canvas with exact PDF dimensions
   const targetRatio = width / height;
-  const outputCanvas = createFillCanvas(sourceCanvas, targetRatio);
+  const outputCanvas = createFitCanvas(sourceCanvas, targetRatio);
   const imgData = outputCanvas.toDataURL("image/jpeg", 0.93);
 
   // Thin border for map frame
@@ -692,7 +692,6 @@ function forceLeafletTilePanesFullSizeForSnapshot(mapElement: HTMLElement): () =
   const H = mapElement.clientHeight;
 
   const selectors = [
-    ".leaflet-pane",
     ".leaflet-map-pane",
     ".leaflet-tile-pane",
     ".leaflet-tile-pane .leaflet-layer",
@@ -711,9 +710,6 @@ function forceLeafletTilePanesFullSizeForSnapshot(mapElement: HTMLElement): () =
         width: el.style.width,
         height: el.style.height,
         overflow: el.style.overflow,
-        position: el.style.position,
-        left: el.style.left,
-        top: el.style.top,
         willChange: el.style.willChange,
         contain: (el.style as any).contain,
       },
@@ -722,9 +718,6 @@ function forceLeafletTilePanesFullSizeForSnapshot(mapElement: HTMLElement): () =
     if (next.width !== undefined) el.style.width = next.width;
     if (next.height !== undefined) el.style.height = next.height;
     if (next.overflow !== undefined) el.style.overflow = next.overflow;
-    if (next.position !== undefined) el.style.position = next.position;
-    if (next.left !== undefined) el.style.left = next.left;
-    if (next.top !== undefined) el.style.top = next.top;
     if (next.willChange !== undefined) el.style.willChange = next.willChange;
     if ((next as any).contain !== undefined) (el.style as any).contain = (next as any).contain;
   };
@@ -740,9 +733,6 @@ function forceLeafletTilePanesFullSizeForSnapshot(mapElement: HTMLElement): () =
         width: `${W}px`,
         height: `${H}px`,
         overflow: "visible",
-        position: "absolute",
-        left: "0px",
-        top: "0px",
         willChange: "auto",
         contain: "none" as any,
       });
@@ -764,9 +754,6 @@ function forceLeafletTilePanesFullSizeForSnapshot(mapElement: HTMLElement): () =
       s.el.style.width = s.style.width || "";
       s.el.style.height = s.style.height || "";
       s.el.style.overflow = s.style.overflow || "";
-      s.el.style.position = s.style.position || "";
-      s.el.style.left = s.style.left || "";
-      s.el.style.top = s.style.top || "";
       s.el.style.willChange = s.style.willChange || "";
       (s.el.style as any).contain = (s.style as any).contain || "";
     }
@@ -784,33 +771,97 @@ async function captureMapCanvas(
   const maxAttempts = 3;
   let lastCanvas: HTMLCanvasElement | null = null;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    await waitForLeafletTiles(mapElement, 9000);
-    const restoreLeafletTransforms = normalizeLeafletTransformsForSnapshot(mapElement);
-    const restoreFullSizePanes = forceLeafletTilePanesFullSizeForSnapshot(mapElement);
+  // Hide Leaflet controls so they don't appear in the capture
+  const controlElements = mapElement.querySelectorAll<HTMLElement>(".leaflet-control-container");
+  const controlVisibility: string[] = [];
+  controlElements.forEach((el) => {
+    controlVisibility.push(el.style.display);
+    el.style.display = "none";
+  });
 
-    try {
-      lastCanvas = await html2canvas(mapElement, {
-        scale,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        ignoreElements: (element: HTMLElement) => element.classList.contains("leaflet-control"),
-      } as any);
-    } finally {
-      restoreFullSizePanes();
-      restoreLeafletTransforms();
-    }
+  try {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      await waitForLeafletTiles(mapElement, 9000);
+      const restoreLeafletTransforms = normalizeLeafletTransformsForSnapshot(mapElement);
+      const restoreFullSizePanes = forceLeafletTilePanesFullSizeForSnapshot(mapElement);
+      const restorePaneOrder = enforceLeafletPaneOrderForSnapshot(mapElement);
 
-    if (!hasLikelyBlankTileGap(mapElement, lastCanvas)) {
-      return lastCanvas;
+      try {
+        lastCanvas = await html2canvas(mapElement, {
+          scale,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          width: mapElement.clientWidth,
+          height: mapElement.clientHeight,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: mapElement.clientWidth,
+          windowHeight: mapElement.clientHeight,
+          ignoreElements: (element: HTMLElement) =>
+            element.classList.contains("leaflet-control") ||
+            element.classList.contains("leaflet-control-container"),
+        } as any);
+      } finally {
+        restorePaneOrder();
+        restoreFullSizePanes();
+        restoreLeafletTransforms();
+      }
+
+      if (lastCanvas && !hasLikelyBlankTileGap(mapElement, lastCanvas)) {
+        return lastCanvas;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
-    await new Promise((resolve) => setTimeout(resolve, 260));
+  } finally {
+    // Restore controls visibility
+    controlElements.forEach((el, i) => {
+      el.style.display = controlVisibility[i] || "";
+    });
   }
 
   if (lastCanvas) return lastCanvas;
   throw new Error("Impossible de capturer la carte.");
+}
+
+function enforceLeafletPaneOrderForSnapshot(mapElement: HTMLElement): () => void {
+  const paneOrder: Array<{ selector: string; zIndex: string }> = [
+    { selector: ".leaflet-tile-pane", zIndex: "200" },
+    { selector: ".leaflet-overlay-pane", zIndex: "400" },
+    { selector: ".leaflet-shadow-pane", zIndex: "500" },
+    { selector: ".leaflet-marker-pane", zIndex: "600" },
+    { selector: ".leaflet-tooltip-pane", zIndex: "650" },
+    { selector: ".leaflet-popup-pane", zIndex: "700" },
+  ];
+
+  const snapshots: Array<{ el: HTMLElement; zIndex: string; position: string }> = [];
+  const seen = new Set<HTMLElement>();
+
+  paneOrder.forEach((entry) => {
+    mapElement.querySelectorAll<HTMLElement>(entry.selector).forEach((el) => {
+      if (seen.has(el)) return;
+      seen.add(el);
+      snapshots.push({
+        el,
+        zIndex: el.style.zIndex,
+        position: el.style.position,
+      });
+      if (!el.style.position) {
+        el.style.position = "absolute";
+      }
+      el.style.zIndex = entry.zIndex;
+    });
+  });
+
+  return () => {
+    snapshots.forEach((snapshot) => {
+      snapshot.el.style.zIndex = snapshot.zIndex || "";
+      snapshot.el.style.position = snapshot.position || "";
+    });
+  };
 }
 
 async function captureMapAsDataUrl(
@@ -1055,12 +1106,8 @@ function estimateNearWhiteRatio(canvas: HTMLCanvasElement): number {
   return nearWhite / total;
 }
 
-function createFillCanvas(source: HTMLCanvasElement, targetRatio: number): HTMLCanvasElement {
-  const sourceRatio = source.width / Math.max(1, source.height);
-
-  // Calculate output dimensions based on target ratio
-  // We want to maintain a standard width and adjust height
-  const outputWidth = Math.max(source.width, 2000); // Minimum quality
+function createFitCanvas(source: HTMLCanvasElement, targetRatio: number): HTMLCanvasElement {
+  const outputWidth = Math.max(source.width, 2000);
   const outputHeight = Math.round(outputWidth / targetRatio);
 
   const output = document.createElement("canvas");
@@ -1068,32 +1115,19 @@ function createFillCanvas(source: HTMLCanvasElement, targetRatio: number): HTMLC
   output.height = outputHeight;
 
   const ctx = output.getContext("2d");
-  if (!ctx) {
-    return source;
-  }
+  if (!ctx) return source;
 
-  // Fill background with white
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-  // Calculate source crop to fill target (cover mode)
-  let sx = 0;
-  let sy = 0;
-  let sw = source.width;
-  let sh = source.height;
+  // Preserve exact viewport extent (fit), no center crop.
+  const scale = Math.min(outputWidth / source.width, outputHeight / source.height);
+  const drawW = Math.round(source.width * scale);
+  const drawH = Math.round(source.height * scale);
+  const dx = Math.round((outputWidth - drawW) / 2);
+  const dy = Math.round((outputHeight - drawH) / 2);
 
-  if (sourceRatio > targetRatio) {
-    // Source is wider - crop width
-    sw = Math.round(sh * targetRatio);
-    sx = Math.round((source.width - sw) / 2);
-  } else if (sourceRatio < targetRatio) {
-    // Source is taller - crop height
-    sh = Math.round(sw / targetRatio);
-    sy = Math.round((source.height - sh) / 2);
-  }
-
-  // Draw cropped source to fill output
-  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
+  ctx.drawImage(source, 0, 0, source.width, source.height, dx, dy, drawW, drawH);
 
   return output;
 }

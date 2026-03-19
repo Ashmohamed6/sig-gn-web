@@ -24,6 +24,8 @@ export interface ImportValidationReport {
     new_count: number;
     existing_count: number;
     duplicate_count: number;
+    missing_identifier_count?: number;
+    auto_generated_identifier_count?: number;
   };
   columns: {
     expected: string[];
@@ -49,6 +51,7 @@ export interface ImportExecutionResult {
     stage_table: string;
     rows_total: number;
     rows_ok: number;
+    rows_skipped?: number;
     rows_error: number;
     errors: Array<{ row_number: number; message: string }>;
   };

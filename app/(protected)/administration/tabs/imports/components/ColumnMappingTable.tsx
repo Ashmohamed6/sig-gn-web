@@ -9,11 +9,19 @@ interface ColumnMappingTableProps {
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     matched: "bg-emerald-100 text-emerald-800",
+    alias_mapped: "bg-cyan-100 text-cyan-800",
+    derived_checkbox: "bg-indigo-100 text-indigo-800",
+    ignored_kobo_meta: "bg-violet-100 text-violet-700",
+    ignored_payload_only: "bg-amber-100 text-amber-800",
     unmatched: "bg-red-100 text-red-700",
     auto_filled: "bg-blue-100 text-blue-700",
   };
   const labels: Record<string, string> = {
     matched: "OK",
+    alias_mapped: "Alias",
+    derived_checkbox: "Checkbox",
+    ignored_kobo_meta: "Meta",
+    ignored_payload_only: "Payload",
     unmatched: "Ignore",
     auto_filled: "Auto",
   };
@@ -46,8 +54,18 @@ function CategoryBadge({ category }: { category: string | null }) {
 export default function ColumnMappingTable({ mapping }: ColumnMappingTableProps) {
   if (!mapping || mapping.length === 0) return null;
 
-  const matched = mapping.filter((m) => m.status === "matched");
-  const unmatched = mapping.filter((m) => m.status === "unmatched");
+  const recognized = mapping.filter(
+    (m) =>
+      m.status === "matched" ||
+      m.status === "alias_mapped" ||
+      m.status === "derived_checkbox"
+  );
+  const unmatched = mapping.filter(
+    (m) =>
+      m.status === "unmatched" ||
+      m.status === "ignored_kobo_meta" ||
+      m.status === "ignored_payload_only"
+  );
   const autoFilled = mapping.filter((m) => m.status === "auto_filled");
 
   return (
@@ -55,7 +73,7 @@ export default function ColumnMappingTable({ mapping }: ColumnMappingTableProps)
       <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between">
         <p className="text-xs font-semibold text-slate-700">Mapping colonnes CSV / Stage</p>
         <div className="flex gap-2 text-[10px] text-slate-500">
-          <span>{matched.length} reconnues</span>
+          <span>{recognized.length} reconnues</span>
           <span>{unmatched.length} ignorees</span>
           <span>{autoFilled.length} auto</span>
         </div>

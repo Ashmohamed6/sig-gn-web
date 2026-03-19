@@ -4,7 +4,14 @@ export type DuplicateStrategy = "update" | "skip" | "update_only";
 
 export type ColumnCategory = "system" | "kobo_meta" | "data";
 
-export type MappingStatus = "matched" | "unmatched" | "auto_filled";
+export type MappingStatus =
+  | "matched"
+  | "alias_mapped"
+  | "derived_checkbox"
+  | "ignored_kobo_meta"
+  | "ignored_payload_only"
+  | "unmatched"
+  | "auto_filled";
 
 export interface ColumnMappingEntry {
   csv_header: string | null;

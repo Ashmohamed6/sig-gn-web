@@ -430,7 +430,9 @@ function CartographiePageContent() {
         setLayerLoading(layerId, true);
 
         try {
-          const geojson = await fetchGeoJSONLayer(layerConfig.endpoint, project.code_fonc);
+          const code = project?.code_fonc;
+          if (!code) continue;
+          const geojson = await fetchGeoJSONLayer(layerConfig.endpoint, code);
 
           setLayerData((prev) => ({
             ...prev,
@@ -634,20 +636,26 @@ function CartographiePageContent() {
   const handlePrint = useCallback(
     async (config: PrintConfig) => {
       if (!mapInstance) {
-        throw new Error("Carte non initialisée");
+        throw new Error("Carte non initialisee");
       }
 
       const mapElement = mapInstance.getContainer();
       if (!mapElement) {
-        throw new Error("Élément carte introuvable");
+        throw new Error("Element carte introuvable");
       }
 
-      mapInstance.invalidateSize({ animate: false });
-      await new Promise((r) => setTimeout(r, 250));
-      mapInstance.fire("moveend");
-      await new Promise((r) => setTimeout(r, 250));
+      // Stop any ongoing animations/panning
+      mapInstance.stop();
 
+      // Close any open popups/tooltips so they don't appear in the export
+      try { mapInstance.closePopup(); } catch { /* no popup open */ }
+      try { mapInstance.closeTooltip(); } catch { /* no tooltip open */ }
+
+      // Capture the current bounds BEFORE any size manipulation
       const bounds = getMapBounds(mapInstance);
+
+      // Wait for tiles to stabilize at current view
+      await new Promise((r) => setTimeout(r, 400));
 
       await exportMap({
         config,
@@ -797,7 +805,7 @@ function CartographiePageContent() {
             layerData={layerData}
             activeBasemap={activeBasemap}
             neutralBg={neutralBg}
-            onBasemapFallback={(id) => changeBasemap(id as any)}
+            onBasemapFallback={changeBasemap}
             showRegionLabels={showRegionLabels}
             showPrefectureLabels={showPrefectureLabels}
             showCommuneLabels={showCommuneLabels}
@@ -966,4 +974,3 @@ function createDeepLinkHighlightLayer(
     }
   );
 }
-

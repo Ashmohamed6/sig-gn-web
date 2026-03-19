@@ -16,6 +16,7 @@ import {
   Search,
   Settings,
   Shield,
+  TrendingUp,
 } from "lucide-react";
 
 type Props = {
@@ -228,6 +229,11 @@ export default function ProtectedLayout({ children }: Props) {
       label: "Outils",
       href: "/tools",
       icon: Settings,
+    },
+    {
+      label: "Analyses",
+      href: "/analyses",
+      icon: TrendingUp,
     },
     {
       label: "Administration",

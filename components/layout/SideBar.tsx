@@ -14,6 +14,7 @@ import {
   Map,
   Database,
   Settings,
+  TrendingUp,
   User,
   ChevronRight,
   ChevronDown,
@@ -95,6 +96,13 @@ export default function Sidebar({ isOpen }: SidebarProps) {
         path: "/tools",
       });
     }
+
+    items.push({
+      id: "analyses",
+      label: "Analyses",
+      icon: TrendingUp,
+      path: "/analyses",
+    });
 
     // Administration (N1/N2/Admin)
     if (canAccessAdministration) {

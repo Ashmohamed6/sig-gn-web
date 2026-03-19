@@ -29,6 +29,7 @@ export default function StepImportExecute({
   const isSuccess = executionResult.status === "success";
   const isPartial = executionResult.status === "partial_success";
   const rowsOk = executionResult.result?.rows_ok ?? 0;
+  const rowsSkipped = executionResult.result?.rows_skipped ?? 0;
   const rowsError = executionResult.result?.rows_error ?? 0;
   const rowsTotal = executionResult.result?.rows_total ?? 0;
 
@@ -60,7 +61,7 @@ export default function StepImportExecute({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div className="rounded-lg border border-slate-200 p-3 text-center">
           <p className="text-xs text-slate-500">Total</p>
           <p className="text-lg font-bold text-slate-800">{rowsTotal.toLocaleString("fr-FR")}</p>
@@ -68,6 +69,10 @@ export default function StepImportExecute({
         <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 text-center">
           <p className="text-xs text-emerald-700">Importees</p>
           <p className="text-lg font-bold text-emerald-700">{rowsOk.toLocaleString("fr-FR")}</p>
+        </div>
+        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-center">
+          <p className="text-xs text-amber-700">Ignorees</p>
+          <p className="text-lg font-bold text-amber-700">{rowsSkipped.toLocaleString("fr-FR")}</p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50/50 p-3 text-center">
           <p className="text-xs text-red-700">Erreurs</p>
